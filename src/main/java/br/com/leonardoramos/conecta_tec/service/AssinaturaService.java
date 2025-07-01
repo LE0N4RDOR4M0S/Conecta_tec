@@ -5,6 +5,7 @@ import br.com.leonardoramos.conecta_tec.entity.Assinatura;
 import br.com.leonardoramos.conecta_tec.repository.AssinaturaRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -13,8 +14,13 @@ public class AssinaturaService {
 
     private final AssinaturaRepository assinaturaRepository;
 
-    public AssinaturaService(AssinaturaRepository assinaturaRepository) {
+    private final LojaService lojaService;
+    private final PlanoService planoService;
+
+    public AssinaturaService(AssinaturaRepository assinaturaRepository, LojaService lojaService, PlanoService planoService) {
         this.assinaturaRepository = assinaturaRepository;
+        this.lojaService = lojaService;
+        this.planoService = planoService;
     }
 
     /**
@@ -48,6 +54,38 @@ public class AssinaturaService {
      */
     public Optional<Assinatura> buscarAssinaturaPorId(String id) {
         return assinaturaRepository.findById(UUID.fromString(id));
+    }
+
+    /**
+     *
+     */
+    public Optional<List<Assinatura>> buscarTodasAssassinaturas() {
+        return Optional.of(assinaturaRepository.findAll());
+    }
+
+    /**
+     * Exclui uma assinatura pelo ID.
+     * @param id O ID da assinatura a ser excluída, no formato String.
+     */
+    public void excluirAssinatura(String id) {
+        assinaturaRepository.deleteById(UUID.fromString(id));
+    }
+
+    /**
+     * Atualiza uma assinatura existente.
+     * @param dto A assinatura a ser atualizada.
+     * @param id O ID da assinatura a ser atualizada, no formato String.
+     * @return A assinatura atualizada.
+     */
+    public Optional<Assinatura> updateAssinatura(AssinaturaCadastroDTO dto, String id){
+        Optional<Assinatura> existente = assinaturaRepository.findById(UUID.fromString(id));
+        if (existente.isEmpty()) {
+            throw new RuntimeException("Assinatura não encontrada");
+        }
+        existente.get().setPlano(planoService.buscarPlanoPorId(dto.getPlanoId()).get());
+        existente.get().setLoja(lojaService.buscarLojaPorId(dto.getLojaId()).get());
+        existente.get().setStatus(dto.getStatus());
+        return Optional.of(assinaturaRepository.save(existente.get()));
     }
 
 }
