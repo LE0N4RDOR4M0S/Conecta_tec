@@ -5,6 +5,7 @@ import br.com.leonardoramos.conecta_tec.entity.Loja;
 import br.com.leonardoramos.conecta_tec.repository.LojaRepository;
 import br.com.leonardoramos.conecta_tec.service.LojaService;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -30,7 +31,7 @@ public class LojaController {
      * @return A entidade Loja criada com status 201 Created.
      */
     @PostMapping("/cadastro")
-    public ResponseEntity<Loja> cadastrarLoja(@RequestBody LojaCadastroDTO dto) {
+    public ResponseEntity<Loja> cadastrarLoja(@Valid @RequestBody LojaCadastroDTO dto) {
         Loja novaLoja = lojaService.cadastrarLoja(dto);
         // Retorna a loja criada e o status HTTP 201 (Created)
         return new ResponseEntity<>(novaLoja, HttpStatus.CREATED);

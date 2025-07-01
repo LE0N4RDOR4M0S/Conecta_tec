@@ -4,6 +4,7 @@ import br.com.leonardoramos.conecta_tec.dto.ProdutoCadastroDTO;
 import br.com.leonardoramos.conecta_tec.entity.Produto;
 import br.com.leonardoramos.conecta_tec.service.ProdutoService;
 
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -38,7 +39,7 @@ public class ProdutoController {
     @PostMapping(consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
     public ResponseEntity<Produto> adicionarProduto(
             @PathVariable UUID lojaId,
-            @RequestPart("produto") ProdutoCadastroDTO dto,
+            @Valid @RequestPart("produto") ProdutoCadastroDTO dto,
             @RequestPart("imagem") MultipartFile imagem) throws IOException {
 
         // IMPORTANTE: Em um sistema real, aqui você deve ter uma camada de segurança (ex: Spring Security com JWT)
