@@ -1,6 +1,5 @@
 FROM maven:3.9-eclipse-temurin-17 AS build
 
-# Define o diretório de trabalho dentro do container
 WORKDIR /app
 
 COPY pom.xml .
