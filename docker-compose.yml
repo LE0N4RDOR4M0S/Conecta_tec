@@ -29,7 +29,7 @@ services:
       - vitrine-tec-net
 
   app:
-    build: .
+    image: 01923483102/vitrine-tec
     container_name: vitrine-tec-app
     ports:
       - "8080:8080"
