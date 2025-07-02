@@ -24,7 +24,6 @@ jobs:
         with:
           context: .
           push: true
-          platforms: linux/amd64
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/vitrine-tec:${{ github.ref_name == 'main' && 'latest' || github.ref_name }}-amd64
 
   build-arm64:
