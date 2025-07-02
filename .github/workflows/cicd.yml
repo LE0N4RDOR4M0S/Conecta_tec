@@ -66,11 +66,7 @@ jobs:
     environment:
       name: ${{ github.ref_name == 'main' && 'production' || 'development' }}
     steps:
-      - name: Checkout do código
-        uses: actions/checkout@v3
-
-
-      - name: Executar o deploy com separação de ambiente
+      - name: Executar o deploy com Tag Dinâmica
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -79,11 +75,13 @@ jobs:
           port: ${{ secrets.SERVER_PORT || 22 }}
           script: |
             if [[ "${{ github.ref_name }}" == "main" ]]; then
-              PROJECT_DIR="prod"
-              HOST_PORT="8080"
+              export PROJECT_DIR="prod"
+              export HOST_PORT="8080"
+              export APP_TAG="latest"
             else
-              PROJECT_DIR="dev"
-              HOST_PORT="8888"
+              export PROJECT_DIR="dev"
+              export HOST_PORT="8888"
+              export APP_TAG="dev"
             fi
             
             mkdir -p ~/$PROJECT_DIR

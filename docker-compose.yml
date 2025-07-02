@@ -29,7 +29,7 @@ services:
       - vitrine-tec-net
 
   app:
-    image: 01923483102/vitrine-tec
+    image: 01923483102/vitrine-tec:${APP_TAG:-latest}
     container_name: vitrine-tec-app
     ports:
       - "8080:8080"
