@@ -1,7 +1,7 @@
-
 version: '3.8'
 
 services:
+  # SERVIÇO DO BANCO DE DADOS (JÁ EXISTENTE)
   db:
     image: postgres:15-alpine
     container_name: vitrine-tec-db
@@ -16,6 +16,7 @@ services:
     networks:
       - vitrine-tec-net
 
+  # SERVIÇO DO MINIO (JÁ EXISTENTE)
   minio:
     image: minio/minio:latest
     container_name: vitrine-tec-minio
@@ -31,24 +32,23 @@ services:
     networks:
       - vitrine-tec-net
 
-  # Serviço 3: A nossa aplicação Spring Boot (será adicionada depois)
-  # app:
-  #   build: .
-  #   container_name: vitrine-tec-app
-  #   ports:
-  #     - "8080:8080"
-  #   depends_on:
-  #     - db
-  #     - minio
-  #   environment:
-  #     - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/vitrinetec
-  #     - SPRING_DATASOURCE_USERNAME=admin
-  #     - SPRING_DATASOURCE_PASSWORD=supersecret
-  #     - MINIO_URL=http://minio:9000
-  #     - MINIO_ACCESS_KEY=minioadmin
-  #     - MINIO_SECRET_KEY=miniosupersecret
-  #   networks:
-  #     - vitrine-tec-net
+  app:
+    build: .
+    container_name: vitrine-tec-app
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/vitrinetec
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=123456
+      - MINIO_URL=http://minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=miniosupersecret
+    networks:
+      - vitrine-tec-net
+    depends_on:
+      - db
+      - minio
 
 volumes:
   postgres_data:
