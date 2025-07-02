@@ -7,82 +7,70 @@ on:
       - develop
 
 jobs:
-  build-amd64:
+  build-and-push:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout do código
         uses: actions/checkout@v3
-      - name: Configurar o Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      - name: Login no Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Build e Push da imagem AMD64
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/vitrine-tec:${{ github.ref_name == 'main' && 'latest' || github.ref_name }}-amd64
 
-  build-arm64:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout do código
-        uses: actions/checkout@v3
-      - name: Configurar QEMU
+      - name: Configurar o QEMU para emulação ARM
         uses: docker/setup-qemu-action@v3
+
       - name: Configurar o Docker Buildx
         uses: docker/setup-buildx-action@v2
+
+      - name: Cache de camadas Docker
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-arm-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-arm-
+
       - name: Login no Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Build e Push da imagem ARM64
+
+      - name: Determinar a tag da imagem
+        id: docker_meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/vitrine-tec
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/develop' }}
+
+      - name: Build e Push da imagem para ARM64
+        id: build-and-push
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
           platforms: linux/arm64
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/vitrine-tec:${{ github.ref_name == 'main' && 'latest' || github.ref_name }}-arm64
+          tags: ${{ steps.docker_meta.outputs.tags }}
+          labels: ${{ steps.docker_meta.outputs.labels }}
+          provenance: false
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 
-  create-manifest:
-    runs-on: ubuntu-latest
-    needs: [build-amd64, build-arm64]
-    steps:
-      - name: Login no Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Criar e enviar o manifest
+      - name: Mover cache para uso futuro
         run: |
-          BASE_TAG=${{ github.ref_name == 'main' && 'latest' || github.ref_name }}
-          docker manifest create ${{ secrets.DOCKERHUB_USERNAME }}/vitrine-tec:$BASE_TAG \
-            --amend ${{ secrets.DOCKERHUB_USERNAME }}/vitrine-tec:$BASE_TAG-amd64 \
-            --amend ${{ secrets.DOCKERHUB_USERNAME }}/vitrine-tec:$BASE_TAG-arm64
-          docker manifest push ${{ secrets.DOCKERHUB_USERNAME }}/vitrine-tec:$BASE_TAG
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
   deploy:
-    needs: create-manifest
+    needs: build-and-push
     runs-on: ubuntu-latest
     environment:
       name: ${{ github.ref_name == 'main' && 'production' || 'development' }}
     steps:
       - name: Checkout do código
         uses: actions/checkout@v3
-      - name: Copiar o arquivo Docker Compose para o servidor
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USERNAME }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SERVER_PORT || 22 }}
-          source: "docker-compose.yml"
-          target: "~/vitrine-tec"
-      - name: Executar o deploy com Docker Compose
+
+
+      - name: Executar o deploy com separação de ambiente
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -90,7 +78,24 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script: |
-            cd ~/vitrine-tec
+            if [[ "${{ github.ref_name }}" == "main" ]]; then
+              PROJECT_DIR="prod"
+              HOST_PORT="8080"
+            else
+              PROJECT_DIR="dev"
+              HOST_PORT="8888"
+            fi
+            
+            mkdir -p ~/$PROJECT_DIR
+            
+            echo '${{ secrets.DOCKER_COMPOSE_CONTENT }}' > ~/$PROJECT_DIR/docker-compose.yml
+            
+            sed -i "s/8080:8080/$HOST_PORT:8080/" ~/$PROJECT_DIR/docker-compose.yml
+            
+            cd ~/$PROJECT_DIR
+            
             echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
-            docker compose pull app # Puxa a imagem com a tag final (ex: latest)
-            docker compose up -d --remove-orphans
+            
+            docker compose pull app
+            
+            docker compose -p "vitrine-$PROJECT_DIR" up -d --remove-orphans
