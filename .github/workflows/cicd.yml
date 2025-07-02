@@ -19,46 +19,19 @@ jobs:
       - name: Configurar o Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Cache de camadas Docker
-        uses: actions/cache@v3
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-arm-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-arm-
-
       - name: Login no Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Determinar a tag da imagem
-        id: docker_meta
-        uses: docker/metadata-action@v4
-        with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/vitrine-tec
-          tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/develop' }}
-
       - name: Build e Push da imagem para ARM64
-        id: build-and-push
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
           platforms: linux/arm64
-          tags: ${{ steps.docker_meta.outputs.tags }}
-          labels: ${{ steps.docker_meta.outputs.labels }}
-          provenance: false
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
-
-      - name: Mover cache para uso futuro
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/vitrine-tec:${{ github.ref_name == 'main' && 'latest' || github.ref_name }}
 
   deploy:
     needs: build-and-push
@@ -83,13 +56,13 @@ jobs:
               export HOST_PORT="8888"
               export APP_TAG="dev"
             fi
-            
+
             mkdir -p ~/$PROJECT_DIR
-            
+
             echo '${{ secrets.DOCKER_COMPOSE_CONTENT }}' > ~/$PROJECT_DIR/docker-compose.yml
             
             sed -i "s/8080:8080/$HOST_PORT:8080/" ~/$PROJECT_DIR/docker-compose.yml
-            
+
             cd ~/$PROJECT_DIR
             
             echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
