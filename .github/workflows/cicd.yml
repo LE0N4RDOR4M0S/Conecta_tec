@@ -36,7 +36,7 @@ jobs:
 
       # ADICIONADO: O passo que realmente executa os testes
       - name: Rodar os testes com Maven
-        run: mvn -B verify
+        run: mvn -B verify -e
 
   build-and-push:
     needs: tests
